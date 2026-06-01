@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tic Tac Toe</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #000000;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    h1 {
+      color: #4ddd6a;
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      margin-bottom: 1.2rem;
+      text-transform: uppercase;
+    }
+
+    #score-row {
+      display: flex;
+      gap: 36px;
+      margin-bottom: 1rem;
+    }
+
+    .score-box {
+      text-align: center;
+      font-size: 13px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .score-box span {
+      display: block;
+      font-size: 24px;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+
+    .score-x       { color: #888; }
+    .score-x span  { color: #ffe033; }
+    .score-o       { color: #888; }
+    .score-o span  { color: #ffffff; }
+    .score-draw       { color: #888; }
+    .score-draw span  { color: #888; }
+
+    #status {
+      font-size: 18px;
+      font-weight: 500;
+      color: #4ddd6a;
+      margin-bottom: 1.4rem;
+      letter-spacing: 0.04em;
+      min-height: 28px;
+      text-align: center;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 110px);
+      grid-template-rows: repeat(3, 110px);
+      gap: 0;
+      position: relative;
+    }
+
+    .cell {
+      width: 110px;
+      height: 110px;
+      border: 2px solid #4ddd6a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: #000;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .cell:hover:not(.taken) {
+      background: #0a1a0a;
+    }
+
+    .cell.taken {
+      cursor: default;
+    }
+
+    .cell svg {
+      width: 68px;
+      height: 68px;
+      pointer-events: none;
+    }
+
+    #win-line-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 330px;
+      height: 330px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #restart-btn {
+      margin-top: 1.6rem;
+      background: transparent;
+      border: 1.5px solid #4ddd6a;
+      color: #4ddd6a;
+      font-size: 15px;
+      padding: 9px 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    #restart-btn:hover {
+      background: #4ddd6a;
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Tic Tac Toe</h1>
+
+  <div id="score-row">
+    <div class="score-box score-x">X Wins <span id="score-x">0</span></div>
+    <div class="score-box score-draw">Draws <span id="score-draw">0</span></div>
+    <div class="score-box score-o">O Wins <span id="score-o">0</span></div>
+  </div>
+
+  <div id="status">X's turn</div>
+
+  <div id="board">
+    <svg id="win-line-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <button id="restart-btn">New Game</button>
+
+  <script>
+    const boardEl     = document.getElementById('board');
+    const statusEl    = document.getElementById('status');
+    const winSvg      = document.getElementById('win-line-svg');
+    const scoreXEl    = document.getElementById('score-x');
+    const scoreOEl    = document.getElementById('score-o');
+    const scoreDrawEl = document.getElementById('score-draw');
+    const restartBtn  = document.getElementById('restart-btn');
+
+    let cells    = Array(9).fill(null);
+    let current  = 'X';
+    let gameOver = false;
+    let scores   = { X: 0, O: 0, draw: 0 };
+
+    const WINS = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    const WIN_COORDS = [
+      { x1: 20,  y1: 55,  x2: 310, y2: 55  },
+      { x1: 20,  y1: 165, x2: 310, y2: 165 },
+      { x1: 20,  y1: 275, x2: 310, y2: 275 },
+      { x1: 55,  y1: 20,  x2: 55,  y2: 310 },
+      { x1: 165, y1: 20,  x2: 165, y2: 310 },
+      { x1: 275, y1: 20,  x2: 275, y2: 310 },
+      { x1: 18,  y1: 18,  x2: 312, y2: 312 },
+      { x1: 312, y1: 18,  x2: 18,  y2: 312 }
+    ];
+
+    function renderX(cell) {
+      const ns  = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', '0 0 68 68');
+      const line = (x1, y1, x2, y2) => {
+        const l = document.createElementNS(ns, 'line');
+        l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+        l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+        l.setAttribute('stroke', '#ffe033');
+        l.setAttribute('stroke-width', '6');
+        l.setAttribute('stroke-linecap', 'round');
+        return l;
+      };
+      svg.appendChild(line(14, 14, 54, 54));
+      svg.appendChild(line(54, 14, 14, 54));
+      cell.appendChild(svg);
+    }
+
+    function renderO(cell) {
+      const ns  = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', '0 0 68 68');
+      const circle = document.createElementNS(ns, 'circle');
+      circle.setAttribute('cx', '34');
+      circle.setAttribute('cy', '34');
+      circle.setAttribute('r',  '20');
+      circle.setAttribute('fill',         'none');
+      circle.setAttribute('stroke',       '#ffffff');
+      circle.setAttribute('stroke-width', '6');
+      svg.appendChild(circle);
+      cell.appendChild(svg);
+    }
+
+    function drawWinLine(lineIndex) {
+      const ns  = 'http://www.w3.org/2000/svg';
+      const co  = WIN_COORDS[lineIndex];
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', co.x1);
+      line.setAttribute('y1', co.y1);
+      line.setAttribute('x2', co.x1);
+      line.setAttribute('y2', co.y1);
+      line.setAttribute('stroke',         '#5ecfff');
+      line.setAttribute('stroke-width',   '2.5');
+      line.setAttribute('stroke-linecap', 'round');
+      winSvg.appendChild(line);
+      let step = 0;
+      const STEPS = 28;
+      function animate() {
+        step++;
+        const t = step / STEPS;
+        line.setAttribute('x2', co.x1 + (co.x2 - co.x1) * t);
+        line.setAttribute('y2', co.y1 + (co.y2 - co.y1) * t);
+        if (step < STEPS) requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function checkResult() {
+      for (let i = 0; i < WINS.length; i++) {
+        const [a, b, c] = WINS[i];
+        if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
+          return { winner: cells[a], lineIndex: i };
+        }
+      }
+      if (cells.every(v => v !== null)) return { winner: 'draw' };
+      return null;
+    }
+
+    function handleClick(e) {
+      const idx = parseInt(e.currentTarget.dataset.index);
+      if (gameOver || cells[idx]) return;
+      cells[idx] = current;
+      e.currentTarget.classList.add('taken');
+      if (current === 'X') renderX(e.currentTarget);
+      else                  renderO(e.currentTarget);
+      const result = checkResult();
+      if (result) {
+        gameOver = true;
+        boardEl.querySelectorAll('.cell').forEach(c => c.classList.add('taken'));
+        if (result.winner === 'draw') {
+          statusEl.textContent  = "It's a draw!";
+          statusEl.style.color  = '#888888';
+          scores.draw++;
+          scoreDrawEl.textContent = scores.draw;
+        } else {
+          statusEl.textContent  = result.winner + ' wins!';
+          statusEl.style.color  = result.winner === 'X' ? '#ffe033' : '#ffffff';
+          scores[result.winner]++;
+          if (result.winner === 'X') scoreXEl.textContent = scores.X;
+          else                       scoreOEl.textContent = scores.O;
+          drawWinLine(result.lineIndex);
+        }
+        return;
+      }
+      current = (current === 'X') ? 'O' : 'X';
+      statusEl.textContent = current + "'s turn";
+      statusEl.style.color = current === 'X' ? '#ffe033' : '#4ddd6a';
+    }
+
+    function buildBoard() {
+      boardEl.querySelectorAll('.cell').forEach(c => c.remove());
+      winSvg.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.className     = 'cell';
+        cell.dataset.index = i;
+        cell.addEventListener('click', handleClick);
+        boardEl.appendChild(cell);
+      }
+      boardEl.appendChild(winSvg);
+    }
+
+    function newGame() {
+      cells    = Array(9).fill(null);
+      current  = 'X';
+      gameOver = false;
+      statusEl.textContent = "X's turn";
+      statusEl.style.color = '#4ddd6a';
+      buildBoard();
+    }
+
+    restartBtn.addEventListener('click', newGame);
+    buildBoard();
+  </script>
+
+</body>
+</html>
